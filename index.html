@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Pub/Sub UI</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        label { display: block; margin-top: 10px; }
+        input { padding: 5px; width: 300px; }
+        button { margin-top: 10px; }
+        table { margin-top: 20px; border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        #messages { margin-top: 20px; border: 1px solid #ddd; padding: 10px; height: 200px; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+<h1>Pub/Sub Dashboard</h1>
+<div id="form-section">
+    <label>WebSocket URL:
+        <input type="text" id="wsUrl" placeholder="ws://example.com/socket">
+    </label>
+    <label>Topic URL:
+        <input type="text" id="topic" placeholder="/topic/my-topic">
+    </label>
+    <label>Service Name:
+        <input type="text" id="service" placeholder="My Service">
+    </label>
+    <button onclick="saveSubscription()">Save</button>
+    <button onclick="connect()">Connect</button>
+    <input type="hidden" id="editId">
+</div>
+
+<h2>Saved Subscriptions</h2>
+<table id="subscriptionsTable">
+    <thead>
+    <tr><th>Service</th><th>WebSocket URL</th><th>Topic</th><th>Actions</th></tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<h2>Messages</h2>
+<div id="messages"></div>
+
+<script>
+let subscriptions = JSON.parse(localStorage.getItem('subscriptions') || '[]');
+let ws;
+
+function renderSubscriptions() {
+    const tbody = document.querySelector('#subscriptionsTable tbody');
+    tbody.innerHTML = '';
+    subscriptions.forEach(sub => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${sub.service}</td><td>${sub.wsUrl}</td><td>${sub.topic}</td>` +
+            `<td><button onclick="editSubscription(${sub.id})">Edit</button>` +
+            `<button onclick="deleteSubscription(${sub.id})">Delete</button></td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function saveSubscription() {
+    const wsUrl = document.getElementById('wsUrl').value.trim();
+    const topic = document.getElementById('topic').value.trim();
+    const service = document.getElementById('service').value.trim();
+    const editId = document.getElementById('editId').value;
+    if (!wsUrl || !topic || !service) return alert('All fields are required.');
+    if (editId) {
+        const sub = subscriptions.find(s => s.id == editId);
+        sub.wsUrl = wsUrl; sub.topic = topic; sub.service = service;
+        document.getElementById('editId').value = '';
+    } else {
+        subscriptions.push({id: Date.now(), wsUrl, topic, service});
+    }
+    localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+    document.getElementById('wsUrl').value = '';
+    document.getElementById('topic').value = '';
+    document.getElementById('service').value = '';
+    renderSubscriptions();
+}
+
+function editSubscription(id) {
+    const sub = subscriptions.find(s => s.id === id);
+    document.getElementById('wsUrl').value = sub.wsUrl;
+    document.getElementById('topic').value = sub.topic;
+    document.getElementById('service').value = sub.service;
+    document.getElementById('editId').value = sub.id;
+}
+
+function deleteSubscription(id) {
+    subscriptions = subscriptions.filter(s => s.id !== id);
+    localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+    renderSubscriptions();
+}
+
+function connect() {
+    const wsUrl = document.getElementById('wsUrl').value.trim();
+    if (!wsUrl) return alert('Provide WebSocket URL to connect.');
+    ws = new WebSocket(wsUrl);
+    ws.onmessage = (e) => {
+        const div = document.getElementById('messages');
+        div.textContent += e.data + '\n';
+        div.scrollTop = div.scrollHeight;
+    };
+    ws.onopen = () => console.log('connected');
+    ws.onerror = err => console.error('ws error', err);
+}
+
+renderSubscriptions();
+</script>
+</body>
+</html>
