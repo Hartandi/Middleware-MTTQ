@@ -72,6 +72,16 @@ function saveSubscription() {
         subscriptions.push({id: Date.now(), wsUrl, topic, service});
     }
     localStorage.setItem('subscriptions', JSON.stringify(subscriptions));
+
+    // Notify backend to create corresponding service
+    fetch('/create-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wsUrl, topic, service })
+    })
+        .then(r => r.json())
+        .then(data => console.log('Service creation response', data))
+        .catch(err => console.error('Service creation error', err));
     document.getElementById('wsUrl').value = '';
     document.getElementById('topic').value = '';
     document.getElementById('service').value = '';
